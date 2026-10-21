@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Take-home: phishing URL detection</title>
+<style>
+:root {
+  --bg: #fbfbf9; --fg: #23211d; --muted: #6b6660; --rule: #e2ded6;
+  --accent: #8a4b2a; --code-bg: #f2efe9; --th-bg: #f2efe9;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1a1917; --fg: #e6e2db; --muted: #9a948b; --rule: #35322d;
+    --accent: #d99a6c; --code-bg: #232120; --th-bg: #232120;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1a1917; --fg: #e6e2db; --muted: #9a948b; --rule: #35322d;
+  --accent: #d99a6c; --code-bg: #232120; --th-bg: #232120;
+}
+html { background: var(--bg); }
+body {
+  background: var(--bg); color: var(--fg); margin: 0 auto; padding: 3.5rem 1.5rem 6rem;
+  max-width: 46rem; line-height: 1.65;
+  font-family: ui-serif, Georgia, "Times New Roman", serif; font-size: 1.05rem;
+}
+h1, h2, h3 { font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; line-height: 1.25; }
+h1 { font-size: 1.9rem; margin: 0 0 .4rem; letter-spacing: -.02em; }
+h1 + p { color: var(--muted); margin-top: 0; }
+h2 { font-size: 1.25rem; margin: 3rem 0 .75rem; padding-bottom: .35rem; border-bottom: 1px solid var(--rule); }
+h3 { font-size: 1.05rem; margin: 2rem 0 .5rem; }
+a { color: var(--accent); }
+strong { font-weight: 650; }
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .875em;
+  background: var(--code-bg); padding: .12em .35em; border-radius: 3px;
+}
+pre {
+  background: var(--code-bg); padding: 1rem 1.15rem; border-radius: 6px;
+  overflow-x: auto; border: 1px solid var(--rule);
+}
+pre code { background: none; padding: 0; font-size: .85rem; line-height: 1.5; }
+blockquote { margin: 1.5rem 0; padding-left: 1rem; border-left: 3px solid var(--rule); color: var(--muted); }
+table { border-collapse: collapse; width: 100%; margin: 1.5rem 0; font-size: .95rem;
+        font-family: ui-sans-serif, system-ui, sans-serif; }
+th, td { text-align: left; padding: .5rem .7rem; border-bottom: 1px solid var(--rule); }
+th { background: var(--th-bg); font-weight: 600; font-size: .875rem; }
+td:last-child, th:last-child { text-align: right; }
+.tablewrap { overflow-x: auto; }
+li { margin: .3rem 0; }
+li > p { margin: .3rem 0; }
+hr { border: 0; border-top: 1px solid var(--rule); margin: 3rem 0; }
+@media print {
+  body { max-width: none; padding: 0; font-size: 10.5pt; }
+  h2 { page-break-after: avoid; }
+  pre, table { page-break-inside: avoid; }
+}
+</style>
+</head>
+<body>
+<h1>Take-home: phishing URL detection</h1>
+<p>Build a URL-only phishing classifier and assess whether its results justify
+using it in production. We care most about your evaluation, decisions, and
+ability to explain limitations.</p>
+<p><strong>Time budget: at most four hours.</strong> Prioritise the required work and describe
+anything unfinished. An incomplete submission with sound reasoning is welcome.</p>
+<h2>The data</h2>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th>file</th>
+<th>rows</th>
+<th>columns</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>data/train.csv</code></td>
+<td>8,651</td>
+<td><code>url</code>, <code>label</code></td>
+</tr>
+<tr>
+<td><code>data/test.csv</code></td>
+<td>2,858</td>
+<td><code>url</code>, <code>label</code></td>
+</tr>
+<tr>
+<td><code>data/external_test.csv</code></td>
+<td>2,858</td>
+<td><code>url</code>, <code>label</code></td>
+</tr>
+</tbody>
+</table></div>
+<p><code>label</code> is <code>1</code> for phishing and <code>0</code> for legitimate. All three files are
+approximately balanced. The training collection merged multiple feeds and
+has not been tidied for you. Inspect it before fitting anything.</p>
+<p>The external file comes from a separate public collection. It holds urls and
+labels only, was deduplicated with conflicting labels removed, sampled to
+1,429 per class, and filtered to share no url with the other two files after
+normalising case, scheme, leading <code>www.</code> and trailing slashes. That
+normalisation is our rule for building it, not a preprocessing requirement
+for you, and it is only an approximation of "the same page" — say what you
+think it misses.</p>
+<p>So the external file has had cleaning that <code>train.csv</code> has not. A separate
+source does not guarantee independence or deployment realism.</p>
+<p><strong>Reserve both evaluation files for final assessment</strong>, and create validation
+splits from <code>train.csv</code> as needed.</p>
+<p>You do not need additional data. If you want to add some — for volume, class
+balance, or a different distribution — you are welcome to, provided you:</p>
+<ul>
+<li><strong>exclude anything that appears in <code>test.csv</code> or <code>external_test.csv</code>.</strong>
+  Both are drawn from public collections, so a public dataset you download
+  may well contain our evaluation rows. Check, and state how you checked.</li>
+<li>report where it came from, its size and class balance, and the overlap you
+  measured;</li>
+<li>say what it changed. A result that got worse is a finding, not a failure.</li>
+</ul>
+<h2>What to build</h2>
+<p><strong>1. A baseline.</strong> Train a simple, fast, non-neural model that you could explain
+to an engineer in two minutes.</p>
+<p><strong>Optional:</strong> Try one improvement motivated by your analysis. Keeping the
+baseline is acceptable if you explain why; a second model is not required.</p>
+<p><strong>2. An evaluation.</strong> Evaluate on both supplied evaluation sets. Report recall,
+false-positive rate, precision, and ROC-AUC, naming your operating threshold.
+Measure overlap with training and explain your overlap definition.</p>
+<p>Explain what each set tells you about future performance. Investigate whether
+relationships between training and evaluation examples make the results
+optimistic. You may construct an additional validation split from training.
+Distinguish observations from hypotheses about why results differ.</p>
+<p><strong>3. A single-URL prediction function.</strong> Exact contract:</p>
+<pre><code class="language-python">from predict import predict
+
+predict(&quot;https://www.PayPal-secure.login.tk/webscr?cmd=x&quot;)
+# Example output, not an expected prediction:
+# {&quot;label&quot;: &quot;phishing&quot;, &quot;probability&quot;: 0.97}
+</code></pre>
+<p>Accept a raw string and return exactly these two keys. <code>label</code> is <code>"phishing"</code>
+or <code>"clean"</code>, using your chosen threshold. <code>probability</code> is a finite Python
+number between 0 and 1 estimating phishing probability. Explain its calibration
+limitations and which population it refers to; it need not be calibrated to
+deployment prevalence. Apply all required preprocessing inside the function.
+It must handle unusual strings (including empty or malformed URLs) without
+crashing and run on CPU. Document your treatment of invalid inputs.</p>
+<p><strong>4. A reproducible submission.</strong> Include dependency versions, any required
+model artifacts, and commands to reproduce training, evaluation, and inference
+on another machine. <code>uv</code> is convenient, but other working setups are welcome.
+Inference should load a saved model, without training or downloading on import.</p>
+<h2>What to write</h2>
+<p>A short report, approximately 1–2 pages, covering:</p>
+<ul>
+<li><strong>The result you would tell your manager.</strong> Which metric and evaluation
+  would you stand behind, and what claims do they support?</li>
+<li><strong>Two or three observations about URL characteristics</strong>, supported by
+  numbers. Include one hypothesis your analysis weakened or contradicted.
+  Distinguish dataset patterns from general claims about phishing.</li>
+<li><strong>Threshold and deployment.</strong> Assume roughly one in 1,000 incoming URLs
+  is phishing. Choose a threshold using validation data and estimate deployed
+  precision from measured true-positive and false-positive rates. State your
+  assumptions and what the evaluation sample size allows you to conclude.
+  Would you block URLs, warn users, prioritise review, or defer deployment?
+  Explain what additional evidence you need; no fixed error costs are assumed.</li>
+<li><strong>Data handling.</strong> Describe issues found, any cleaning rules, and how many
+  rows they affected. Multiple treatments can be defensible.</li>
+<li><strong>Three to five consequential decisions:</strong> observation → action → effect.
+  Include unsuccessful changes if you made any; extra experiments are not
+  required to fill the log.</li>
+<li><strong>Limitations and next steps</strong>, including what you left unfinished.</li>
+</ul>
+<h2>How we grade</h2>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th>area</th>
+<th>weight</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Evaluation design and interpretation</td>
+<td>30%</td>
+</tr>
+<tr>
+<td>Threshold, base rate, and uncertainty</td>
+<td>25%</td>
+</tr>
+<tr>
+<td>Data inspection and evidence-backed observations</td>
+<td>20%</td>
+</tr>
+<tr>
+<td>Reproducibility and prediction function</td>
+<td>15%</td>
+</tr>
+<tr>
+<td>Modelling decisions and diagnostic reasoning</td>
+<td>10%</td>
+</tr>
+</tbody>
+</table></div>
+<p>There is no accuracy leaderboard or minimum accuracy target. We assess whether
+your model behaves plausibly and whether your reasoning supports your claims.
+The optional improvement earns no automatic bonus.</p>
+<h2>Submitting</h2>
+<p>Send a repository link containing your code, <code>predict.py</code>, report, setup
+instructions, and <code>predictions.csv</code> (<code>url,probability</code>) with exactly one row
+per URL in <code>data/test.csv</code>. Public or private repositories are welcome; for a
+private submission, contact us to arrange reviewer access or a private upload.
+Do not include supplied datasets in your repository; reviewers already have them.</p>
+<ul>
+<li><strong>Send the link to:</strong> Ruxandra Cuzman — ruxandra.cuzman@opswat.com</li>
+<li><strong>Questions are welcome.</strong> Asking for clarification is not a penalty.</li>
+</ul>
+<p>Use any libraries, tooling, or AI assistance you like. Be ready to explain
+and defend your choices in the follow-up conversation.</p>
+</body>
+</html>
