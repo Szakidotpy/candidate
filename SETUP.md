@@ -185,4 +185,4 @@ Observed differences between the standard and external evaluation sets indicate 
 
 The selected threshold is provisional and does not justify automatic blocking without further representative evaluation.
 
-For the complete analysis, methodology, decision log, uncertainty discussion, and deployment recommendation, see `reports/report.md`.
+For the complete analysis, methodology, decision log, uncertainty discussion, and deployment recommendation, see `reports/Report.md`.
